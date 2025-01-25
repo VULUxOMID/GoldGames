@@ -1,5 +1,7 @@
-import { Box, Container, Typography, Grid, Card, CardContent, Avatar, Button, TextField } from '@mui/material';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { Box, Container, Typography, Grid, Card, CardContent, Avatar, Button, TextField, Alert, CircularProgress } from '@mui/material';
+import { useSelector } from 'react-redux';
+import { supabase } from '../lib/supabase';
 import { gradientText, cardStyles } from '../theme/styles';
 import EditIcon from '@mui/icons-material/Edit';
 
@@ -12,21 +14,107 @@ interface UserProfile {
   winRate: number;
 }
 
-const mockProfile: UserProfile = {
-  username: 'GoldMaster',
-  email: 'user@example.com',
-  avatar: '',
-  totalGold: 25000,
-  gamesPlayed: 100,
-  winRate: 65
-};
+interface RootState {
+  auth: {
+    user: {
+      id: string;
+      email: string;
+    } | null;
+  };
+}
+
+
 
 export default function Profile() {
   const [isEditing, setIsEditing] = useState(false);
-  const [profile, _setProfile] = useState(mockProfile);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [updateLoading, setUpdateLoading] = useState(false);
+  const { user } = useSelector((state: RootState) => state.auth);
+
+  useEffect(() => {
+    if (user) {
+      fetchProfile();
+    }
+  }, [user]);
+
+  const fetchProfile = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user?.id)
+        .single();
+
+      if (error) throw error;
+      setProfile(data || {
+        username: user?.email?.split('@')[0] || 'User',
+        email: user?.email || '',
+        avatar: '',
+        totalGold: 0,
+        gamesPlayed: 0,
+        winRate: 0
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch profile';
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateProfile = async () => {
+    if (!profile || !user) return;
+    
+    setUpdateLoading(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .upsert({
+          user_id: user.id,
+          username: profile.username,
+          avatar: profile.avatar
+        });
+
+      if (error) throw error;
+      setIsEditing(false);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update profile';
+      setError(errorMessage);
+    } finally {
+      setUpdateLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <Container maxWidth="lg" sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+        <CircularProgress />
+      </Container>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <Container maxWidth="lg">
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
+        <Alert severity="error">Failed to load profile</Alert>
+      </Container>
+    );
+  }
 
   return (
     <Container maxWidth="lg">
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
       <Box sx={{ mb: 6 }}>
         <Typography variant="h2" sx={{ ...gradientText, mb: 2 }}>
           Profile
@@ -40,7 +128,7 @@ export default function Profile() {
         {/* Profile Info */}
         <Grid item xs={12} md={8}>
           <Card sx={cardStyles}>
-            <CardContent>
+            <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 4 }}>
                 <Avatar
                   src={profile.avatar}
@@ -48,12 +136,13 @@ export default function Profile() {
                 >
                   {profile.username.charAt(0)}
                 </Avatar>
-                <Box>
+                <Box sx={{ flex: 1 }}>
                   {isEditing ? (
                     <TextField
                       fullWidth
                       label="Username"
                       value={profile.username}
+                      onChange={(e) => setProfile({ ...profile, username: e.target.value })}
                       sx={{ mb: 1 }}
                     />
                   ) : (
@@ -70,10 +159,11 @@ export default function Profile() {
               <Button
                 variant="contained"
                 startIcon={<EditIcon />}
-                onClick={() => setIsEditing(!isEditing)}
-                sx={{ mb: 4 }}
+                onClick={isEditing ? handleUpdateProfile : () => setIsEditing(true)}
+                disabled={updateLoading}
+                sx={{ mb: 4, width: { xs: '100%', sm: 'auto' } }}
               >
-                {isEditing ? 'Save Changes' : 'Edit Profile'}
+                {updateLoading ? 'Saving...' : (isEditing ? 'Save Changes' : 'Edit Profile')}
               </Button>
 
               <Grid container spacing={3}>

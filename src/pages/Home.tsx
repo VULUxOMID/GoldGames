@@ -38,11 +38,25 @@ export default function Home() {
 
   return (
     <Container maxWidth="lg">
-      <Box sx={{ textAlign: 'center', mb: 8, mt: 4 }}>
-        <Typography variant="h1" sx={{ ...gradientText, mb: 2 }}>
+      <Box sx={{ textAlign: 'center', mb: { xs: 4, sm: 6, md: 8 }, mt: { xs: 2, sm: 3, md: 4 } }}>
+        <Typography 
+          variant="h1" 
+          sx={{ 
+            ...gradientText, 
+            mb: 2,
+            fontSize: { xs: '2.5rem', sm: '3.5rem', md: '4rem' }
+          }}
+        >
           Welcome to GoldGames
         </Typography>
-        <Typography variant="h5" color="text.secondary" sx={{ mb: 4 }}>
+        <Typography 
+          variant="h5" 
+          color="text.secondary" 
+          sx={{ 
+            mb: 4,
+            fontSize: { xs: '1.2rem', sm: '1.4rem', md: '1.5rem' }
+          }}
+        >
           Your Premier Gaming Rewards Platform
         </Typography>
         <Button
@@ -50,9 +64,9 @@ export default function Home() {
           size="large"
           sx={{
             ...glowEffect,
-            fontSize: '1.2rem',
-            py: 2,
-            px: 4,
+            fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem' },
+            py: { xs: 1.5, sm: 2 },
+            px: { xs: 3, sm: 4 },
             backgroundColor: 'primary.main',
             '&:hover': { backgroundColor: 'primary.dark' }
           }}
@@ -62,7 +76,7 @@ export default function Home() {
         </Button>
       </Box>
 
-      <Grid container spacing={4}>
+      <Grid container spacing={{ xs: 2, sm: 3, md: 4 }}>
         {features.map((feature) => (
           <Grid item xs={12} sm={6} md={3} key={feature.title}>
             <Card
@@ -74,12 +88,25 @@ export default function Home() {
               }}
               onClick={() => navigate(feature.path)}
             >
-              <CardContent sx={{ textAlign: 'center', p: 3 }}>
-                <Box sx={{ mb: 2 }}>{feature.icon}</Box>
-                <Typography variant="h6" sx={{ mb: 1, color: 'primary.main' }}>
+              <CardContent sx={{ textAlign: 'center', p: { xs: 2, sm: 2.5, md: 3 } }}>
+                <Box sx={{ mb: { xs: 1, sm: 1.5, md: 2 } }}>{feature.icon}</Box>
+                <Typography 
+                  variant="h6" 
+                  sx={{ 
+                    mb: 1, 
+                    color: 'primary.main',
+                    fontSize: { xs: '1.1rem', sm: '1.2rem', md: '1.25rem' }
+                  }}
+                >
                   {feature.title}
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography 
+                  variant="body2" 
+                  color="text.secondary"
+                  sx={{ 
+                    fontSize: { xs: '0.875rem', sm: '0.9rem', md: '1rem' }
+                  }}
+                >
                   {feature.description}
                 </Typography>
               </CardContent>

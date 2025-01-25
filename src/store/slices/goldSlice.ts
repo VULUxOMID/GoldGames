@@ -1,7 +1,8 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { db } from '../../lib/supabase';
+import { supabase } from '../../lib/supabase';
 
 interface Transaction {
+  id?: string;
   user_id: string;
   amount: number;
   type: 'credit' | 'debit';
@@ -25,10 +26,19 @@ const initialState: GoldState = {
 
 export const getTransactionHistory = createAsyncThunk(
   'gold/getTransactionHistory',
-  async (userId: string) => {
-    const { data, error } = await db.transactions.getHistory(userId);
-    if (error) throw error;
-    return data as Transaction[];
+  async (userId: string, { rejectWithValue }) => {
+    try {
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data as Transaction[];
+    } catch (error) {
+      return rejectWithValue(error instanceof Error ? error.message : 'Failed to fetch transactions');
+    }
   }
 );
 
@@ -44,34 +54,34 @@ export const createTransaction = createAsyncThunk(
     amount: number;
     type: 'credit' | 'debit';
     description: string;
-  }) => {
-    const { data, error } = await db.transactions.create({
-      user_id: userId,
-      amount,
-      type,
-      description,
-      created_at: new Date().toISOString(),
-    });
-    if (error) throw error;
-    if (!data) throw new Error('Failed to create transaction');
-    return data as Transaction;
+  }, { rejectWithValue }) => {
+    try {
+      const { data, error } = await supabase
+        .from('transactions')
+        .insert({
+          user_id: userId,
+          amount,
+          type,
+          description,
+          created_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as Transaction;
+    } catch (error) {
+      return rejectWithValue(error instanceof Error ? error.message : 'Failed to create transaction');
+    }
   }
 );
 
 const goldSlice = createSlice({
   name: 'gold',
   initialState,
-  reducers: {
-    clearError: (state) => {
-      state.error = null;
-    },
-    updateBalance: (state, action) => {
-      state.balance = action.payload;
-    },
-  },
+  reducers: {},
   extraReducers: (builder) => {
     builder
-      // Get Transaction History
       .addCase(getTransactionHistory.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -79,36 +89,28 @@ const goldSlice = createSlice({
       .addCase(getTransactionHistory.fulfilled, (state, action) => {
         state.loading = false;
         state.transactions = action.payload;
-        // Calculate balance from transactions
-        state.balance = action.payload.reduce((acc: number, curr: Transaction) => {
-          return curr.type === 'credit'
-            ? acc + curr.amount
-            : acc - curr.amount;
+        state.balance = action.payload.reduce((total, tx) => {
+          return total + (tx.type === 'credit' ? tx.amount : -tx.amount);
         }, 0);
       })
       .addCase(getTransactionHistory.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message || 'Failed to fetch transaction history';
+        state.error = action.payload as string || 'Failed to fetch transaction history';
       })
-      // Create Transaction
       .addCase(createTransaction.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(createTransaction.fulfilled, (state, action) => {
         state.loading = false;
-        state.transactions = [action.payload, ...state.transactions];
-        // Update balance based on transaction type
-        state.balance += action.payload.type === 'credit'
-          ? action.payload.amount
-          : -action.payload.amount;
+        state.transactions.unshift(action.payload);
+        state.balance += action.payload.type === 'credit' ? action.payload.amount : -action.payload.amount;
       })
       .addCase(createTransaction.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message || 'Failed to create transaction';
+        state.error = action.payload as string || 'Failed to create transaction';
       });
   },
 });
 
-export const { clearError, updateBalance } = goldSlice.actions;
 export default goldSlice.reducer;

@@ -1,46 +1,102 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { auth } from '../../lib/supabase';
+import { supabase } from '../../lib/supabase';
+import { User } from '@supabase/supabase-js';
 
 interface AuthState {
-  user: any | null;
+  user: {
+    id: string;
+    email: string;
+  } | null;
   loading: boolean;
   error: string | null;
 }
 
+interface SignInCredentials {
+  email: string;
+  password: string;
+}
+
+interface SignUpCredentials extends SignInCredentials {
+  username?: string;
+}
+
 const initialState: AuthState = {
   user: null,
-  loading: false,
+  loading: true,
   error: null,
+};
+
+const mapUser = (user: User | null) => {
+  if (!user) return null;
+  return {
+    id: user.id,
+    email: user.email || '',
+  };
 };
 
 export const signIn = createAsyncThunk(
   'auth/signIn',
-  async ({ email, password }: { email: string; password: string }) => {
-    const { data, error } = await auth.signIn(email, password);
-    if (error) throw error;
-    return data;
+  async (credentials: SignInCredentials, { rejectWithValue }) => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword(credentials);
+      if (error) throw error;
+      return mapUser(data.user);
+    } catch (error) {
+      if (error instanceof Error) {
+        return rejectWithValue(error.message);
+      }
+      return rejectWithValue('An error occurred during sign in');
+    }
+  }
+);
+
+export const signOut = createAsyncThunk(
+  'auth/signOut',
+  async (_, { rejectWithValue }) => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      return null;
+    } catch (error) {
+      if (error instanceof Error) {
+        return rejectWithValue(error.message);
+      }
+      return rejectWithValue('An error occurred during sign out');
+    }
+  }
+);
+
+export const initializeAuth = createAsyncThunk(
+  'auth/initialize',
+  async (_, { rejectWithValue }) => {
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) throw error;
+      return mapUser(session?.user || null);
+    } catch (error) {
+      if (error instanceof Error) {
+        return rejectWithValue(error.message);
+      }
+      return rejectWithValue('An error occurred while initializing auth');
+    }
   }
 );
 
 export const signUp = createAsyncThunk(
   'auth/signUp',
-  async ({ email, password }: { email: string; password: string }) => {
-    const { data, error } = await auth.signUp(email, password);
-    if (error) throw error;
-    return data;
+  async (credentials: SignUpCredentials, { rejectWithValue }) => {
+    try {
+      const { data, error } = await supabase.auth.signUp(credentials);
+      if (error) throw error;
+      return mapUser(data.user);
+    } catch (error) {
+      if (error instanceof Error) {
+        return rejectWithValue(error.message);
+      }
+      return rejectWithValue('An error occurred during sign up');
+    }
   }
 );
-
-export const signOut = createAsyncThunk('auth/signOut', async () => {
-  const { error } = await auth.signOut();
-  if (error) throw error;
-});
-
-export const getCurrentUser = createAsyncThunk('auth/getCurrentUser', async () => {
-  const { data: { user }, error } = await auth.getUser();
-  if (error) throw error;
-  return user;
-});
 
 const authSlice = createSlice({
   name: 'auth',
@@ -49,45 +105,67 @@ const authSlice = createSlice({
     clearError: (state) => {
       state.error = null;
     },
+    setUser: (state, action) => {
+      state.user = action.payload;
+      state.loading = false;
+    },
   },
   extraReducers: (builder) => {
     builder
-      // Sign In
+      .addCase(initializeAuth.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(initializeAuth.fulfilled, (state, action) => {
+        state.user = action.payload;
+        state.loading = false;
+        state.error = null;
+      })
+      .addCase(initializeAuth.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
       .addCase(signIn.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(signIn.fulfilled, (state, action) => {
-        state.loading = false;
         state.user = action.payload;
+        state.loading = false;
+        state.error = null;
       })
       .addCase(signIn.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message || 'Sign in failed';
+        state.error = action.payload as string;
       })
-      // Sign Up
       .addCase(signUp.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(signUp.fulfilled, (state, action) => {
-        state.loading = false;
         state.user = action.payload;
+        state.loading = false;
+        state.error = null;
       })
       .addCase(signUp.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message || 'Sign up failed';
+        state.error = action.payload as string;
       })
-      // Sign Out
+      .addCase(signOut.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
       .addCase(signOut.fulfilled, (state) => {
         state.user = null;
+        state.loading = false;
+        state.error = null;
       })
-      // Get Current User
-      .addCase(getCurrentUser.fulfilled, (state, action) => {
-        state.user = action.payload;
+      .addCase(signOut.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
       });
   },
 });
 
-export const { clearError } = authSlice.actions;
+export const { clearError, setUser } = authSlice.actions;
 export default authSlice.reducer;

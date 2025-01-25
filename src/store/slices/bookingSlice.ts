@@ -1,8 +1,19 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { db } from '../../lib/supabase';
+import { supabase } from '../../lib/supabase';
+
+interface Session {
+  id: string;
+  title: string;
+  start_time: string;
+  end_time: string;
+  max_players: number;
+  current_players: number;
+  status: 'open' | 'full' | 'in_progress' | 'completed';
+  created_at: string;
+}
 
 interface BookingState {
-  sessions: any[];
+  sessions: Session[];
   loading: boolean;
   error: string | null;
 }
@@ -13,79 +24,46 @@ const initialState: BookingState = {
   error: null,
 };
 
-export const createBooking = createAsyncThunk(
-  'booking/createBooking',
-  async ({
-    userId,
-    setupId,
-    startTime,
-    duration,
-  }: {
-    userId: string;
-    setupId: string;
-    startTime: string;
-    duration: number;
-  }) => {
-    const { data, error } = await db.sessions.create({
-      user_id: userId,
-      setup_id: setupId,
-      start_time: startTime,
-      duration,
-      status: 'scheduled',
-      created_at: new Date().toISOString(),
-    });
-    if (error) throw error;
-    return data;
-  }
-);
+export const fetchSessions = createAsyncThunk(
+  'booking/fetchSessions',
+  async (_, { rejectWithValue }) => {
+    try {
+      const { data, error } = await supabase
+        .from('gaming_sessions')
+        .select('*')
+        .order('start_time', { ascending: true });
 
-export const getUserSessions = createAsyncThunk(
-  'booking/getUserSessions',
-  async (userId: string) => {
-    const { data, error } = await db.sessions.get(userId);
-    if (error) throw error;
-    return data;
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      if (error instanceof Error) {
+        return rejectWithValue(error.message);
+      }
+      return rejectWithValue('An error occurred while fetching sessions');
+    }
   }
 );
 
 const bookingSlice = createSlice({
   name: 'booking',
   initialState,
-  reducers: {
-    clearError: (state) => {
-      state.error = null;
-    },
-  },
+  reducers: {},
   extraReducers: (builder) => {
     builder
-      // Create Booking
-      .addCase(createBooking.pending, (state) => {
+      .addCase(fetchSessions.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(createBooking.fulfilled, (state, action) => {
-        state.loading = false;
-        state.sessions = [action.payload, ...state.sessions];
-      })
-      .addCase(createBooking.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.error.message || 'Failed to create booking';
-      })
-      // Get User Sessions
-      .addCase(getUserSessions.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(getUserSessions.fulfilled, (state, action) => {
-        state.loading = false;
+      .addCase(fetchSessions.fulfilled, (state, action) => {
         state.sessions = action.payload;
-      })
-      .addCase(getUserSessions.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message || 'Failed to fetch user sessions';
+        state.error = null;
+      })
+      .addCase(fetchSessions.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
       });
   },
 });
 
-export const { clearError } = bookingSlice.actions;
 export default bookingSlice.reducer;

@@ -6,6 +6,7 @@ import Sessions from '../pages/Sessions';
 import Leaderboard from '../pages/Leaderboard';
 import Social from '../pages/Social';
 import Profile from '../pages/Profile';
+import Chat from '../pages/Chat';
 import SignIn from '../components/auth/SignIn';
 import SignUp from '../components/auth/SignUp';
 
@@ -21,6 +22,7 @@ export default function AppRoutes() {
         <Route path="/leaderboard" element={<Leaderboard />} />
         <Route path="/social" element={<Social />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/chat" element={<Chat />} />
       </Route>
     </Routes>
   );

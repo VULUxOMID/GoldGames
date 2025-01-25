@@ -40,37 +40,39 @@ export default function Leaderboard() {
                 </Typography>
               </Box>
               
-              <TableContainer component={Paper} sx={{ bgcolor: 'background.paper' }}>
-                <Table>
+              <TableContainer component={Paper} sx={{ bgcolor: 'background.paper', maxWidth: '100%', overflowX: 'auto' }}>
+                <Table size="small">
                   <TableHead>
                     <TableRow>
-                      <TableCell>Rank</TableCell>
-                      <TableCell>Player</TableCell>
-                      <TableCell align="right">Gold Earned</TableCell>
-                      <TableCell align="right">Games Won</TableCell>
+                      <TableCell sx={{ whiteSpace: 'nowrap', padding: { xs: 1, sm: 2 } }}>Rank</TableCell>
+                      <TableCell sx={{ whiteSpace: 'nowrap', padding: { xs: 1, sm: 2 } }}>Player</TableCell>
+                      <TableCell align="right" sx={{ whiteSpace: 'nowrap', padding: { xs: 1, sm: 2 } }}>Gold</TableCell>
+                      <TableCell align="right" sx={{ whiteSpace: 'nowrap', padding: { xs: 1, sm: 2 } }}>Won</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {mockLeaderboard.map((entry) => (
                       <TableRow key={entry.rank}>
-                        <TableCell>
+                        <TableCell sx={{ padding: { xs: 1, sm: 2 } }}>
                           <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            {entry.rank === 1 && <EmojiEventsIcon sx={{ color: '#FFD700', mr: 1 }} />}
-                            {entry.rank === 2 && <EmojiEventsIcon sx={{ color: '#C0C0C0', mr: 1 }} />}
-                            {entry.rank === 3 && <EmojiEventsIcon sx={{ color: '#CD7F32', mr: 1 }} />}
+                            {entry.rank === 1 && <EmojiEventsIcon sx={{ color: '#FFD700', mr: 1, fontSize: { xs: 16, sm: 24 } }} />}
+                            {entry.rank === 2 && <EmojiEventsIcon sx={{ color: '#C0C0C0', mr: 1, fontSize: { xs: 16, sm: 24 } }} />}
+                            {entry.rank === 3 && <EmojiEventsIcon sx={{ color: '#CD7F32', mr: 1, fontSize: { xs: 16, sm: 24 } }} />}
                             {entry.rank}
                           </Box>
                         </TableCell>
-                        <TableCell>
+                        <TableCell sx={{ padding: { xs: 1, sm: 2 } }}>
                           <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <Avatar src={entry.avatar} sx={{ mr: 2 }}>
+                            <Avatar src={entry.avatar} sx={{ mr: 1, width: { xs: 24, sm: 32 }, height: { xs: 24, sm: 32 } }}>
                               {entry.username.charAt(0)}
                             </Avatar>
-                            {entry.username}
+                            <Typography sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}>
+                              {entry.username}
+                            </Typography>
                           </Box>
                         </TableCell>
-                        <TableCell align="right">{entry.goldEarned} G</TableCell>
-                        <TableCell align="right">{entry.gamesWon}</TableCell>
+                        <TableCell align="right" sx={{ padding: { xs: 1, sm: 2 }, fontSize: { xs: '0.875rem', sm: '1rem' } }}>{entry.goldEarned} G</TableCell>
+                        <TableCell align="right" sx={{ padding: { xs: 1, sm: 2 }, fontSize: { xs: '0.875rem', sm: '1rem' } }}>{entry.gamesWon}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

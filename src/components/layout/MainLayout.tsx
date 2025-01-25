@@ -1,6 +1,7 @@
-import { Box, AppBar, Toolbar, IconButton, Typography, Drawer, List, ListItem, ListItemIcon, ListItemText, useTheme, useMediaQuery } from '@mui/material';
-import { useState } from 'react';
+import { Box, AppBar, Toolbar, IconButton, Typography, Drawer, List, ListItem, ListItemIcon, ListItemText, useTheme, useMediaQuery, CircularProgress } from '@mui/material';
+import { useState, useEffect } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import MenuIcon from '@mui/icons-material/Menu';
 import HomeIcon from '@mui/icons-material/Home';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
@@ -8,6 +9,17 @@ import SportsEsportsIcon from '@mui/icons-material/SportsEsports';
 import LeaderboardIcon from '@mui/icons-material/Leaderboard';
 import GroupIcon from '@mui/icons-material/Group';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
+import ChatIcon from '@mui/icons-material/Chat';
+
+interface RootState {
+  auth: {
+    user: {
+      id: string;
+      email: string;
+    } | null;
+    loading: boolean;
+  };
+}
 
 const drawerWidth = 240;
 
@@ -17,6 +29,7 @@ const menuItems = [
   { text: 'Gaming Sessions', icon: <SportsEsportsIcon />, path: '/sessions' },
   { text: 'Leaderboard', icon: <LeaderboardIcon />, path: '/leaderboard' },
   { text: 'Social', icon: <GroupIcon />, path: '/social' },
+  { text: 'Global Chat', icon: <ChatIcon />, path: '/chat' },
   { text: 'Profile', icon: <AccountCircleIcon />, path: '/profile' },
 ];
 
@@ -25,6 +38,25 @@ export default function MainLayout() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const navigate = useNavigate();
+  const { user, loading } = useSelector((state: RootState) => state.auth);
+
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate('/signin');
+    }
+  }, [user, loading, navigate]);
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -44,6 +76,12 @@ export default function MainLayout() {
             onClick={() => {
               navigate(item.path);
               if (isMobile) handleDrawerToggle();
+            }}
+            sx={{
+              '&:hover': {
+                bgcolor: 'action.hover',
+                cursor: 'pointer'
+              }
             }}
           >
             <ListItemIcon sx={{ color: 'primary.main' }}>{item.icon}</ListItemIcon>
@@ -117,11 +155,9 @@ export default function MainLayout() {
           flexGrow: 1,
           p: 3,
           width: { sm: `calc(100% - ${drawerWidth}px)` },
-          minHeight: '100vh',
-          bgcolor: 'background.default',
+          mt: { xs: 7, sm: 8 },
         }}
       >
-        <Toolbar />
         <Outlet />
       </Box>
     </Box>
