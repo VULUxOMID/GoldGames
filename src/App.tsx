@@ -3,6 +3,8 @@ import { CssBaseline } from '@mui/material';
 import { Provider } from 'react-redux';
 import { BrowserRouter } from 'react-router-dom';
 import { SnackbarProvider } from 'notistack';
+import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import { theme } from './theme/theme';
 import { store } from './store/store';
 import AppRoutes from './routes';
@@ -21,6 +23,8 @@ function App() {
         >
           <BrowserRouter>
             <AppRoutes />
+            <Analytics />
+            <SpeedInsights />
           </BrowserRouter>
         </SnackbarProvider>
       </ThemeProvider>

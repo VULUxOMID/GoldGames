@@ -16,7 +16,15 @@ export default defineConfig({
           vendor: ['react', 'react-dom', 'react-router-dom'],
           ui: ['@mui/material', '@emotion/react', '@emotion/styled']
         }
-      }
+      },
+      external: ['@vercel/analytics/react', '@vercel/speed-insights/react']
+    },
+    target: 'esnext',
+    modulePreload: {
+      polyfill: true
     }
+  },
+  optimizeDeps: {
+    include: ['react', 'react-dom', 'react-router-dom', '@mui/material', '@vercel/analytics', '@vercel/speed-insights']
   }
 })
