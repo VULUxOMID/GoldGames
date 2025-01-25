@@ -35,6 +35,8 @@ const SignUp = () => {
     if (passwordError) setPasswordError('');
   };
 
+  const [signupSuccess, setSignupSuccess] = useState(false);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -48,7 +50,7 @@ const SignUp = () => {
         email: formData.email,
         password: formData.password
       })).unwrap();
-      navigate('/');
+      setSignupSuccess(true);
     } catch (err) {
       // Error is handled by the auth slice
     }
@@ -68,7 +70,11 @@ const SignUp = () => {
           <Typography component="h1" variant="h5" sx={{ mb: 3 }}>
             Sign Up
           </Typography>
-          {(error || passwordError) && (
+          {signupSuccess ? (
+            <Alert severity="success" sx={{ mb: 2 }}>
+              Registration successful! Please check your email to confirm your account before signing in.
+            </Alert>
+          ) : (error || passwordError) && (
             <Alert severity="error" sx={{ mb: 2 }}>
               {error || passwordError}
             </Alert>

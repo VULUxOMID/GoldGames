@@ -40,25 +40,56 @@ export default function Profile() {
   }, [user]);
 
   const fetchProfile = async () => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
     try {
-      const { data, error } = await supabase
+      // First try to fetch existing profile
+      const { data: existingProfile, error: fetchError } = await supabase
         .from('profiles')
         .select('*')
-        .eq('user_id', user?.id)
+        .eq('id', user.id)
         .single();
 
-      if (error) throw error;
-      setProfile(data || {
-        username: user?.email?.split('@')[0] || 'User',
-        email: user?.email || '',
-        avatar: '',
-        totalGold: 0,
-        gamesPlayed: 0,
-        winRate: 0
-      });
+      if (fetchError) {
+        // If no profile exists, create one
+        if (fetchError.code === 'PGRST116') {
+          const defaultProfile = {
+            id: user.id,
+            username: user.email?.split('@')[0] || 'User',
+            email: user.email,
+            avatar: '',
+            totalGold: 0,
+            gamesPlayed: 0,
+            winRate: 0,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+
+          const { data: newProfile, error: createError } = await supabase
+            .from('profiles')
+            .insert([defaultProfile])
+            .select()
+            .single();
+
+          if (createError) {
+            throw new Error('Failed to create profile: ' + createError.message);
+          }
+
+          setProfile(newProfile);
+          return;
+        }
+        
+        throw new Error('Failed to fetch profile: ' + fetchError.message);
+      }
+
+      setProfile(existingProfile);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to fetch profile';
       setError(errorMessage);
+      console.error('Profile error:', error);
     } finally {
       setLoading(false);
     }
@@ -71,14 +102,16 @@ export default function Profile() {
     try {
       const { error } = await supabase
         .from('profiles')
-        .upsert({
-          user_id: user.id,
+        .update({
           username: profile.username,
-          avatar: profile.avatar
-        });
+          avatar: profile.avatar,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
 
       if (error) throw error;
       setIsEditing(false);
+      await fetchProfile(); // Refresh profile data after update
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to update profile';
       setError(errorMessage);

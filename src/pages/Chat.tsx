@@ -25,6 +25,9 @@ interface Message {
   user_email: string;
   content: string;
   created_at: string;
+  profiles?: {
+    username: string;
+  };
 }
 
 interface RootState {
@@ -102,7 +105,7 @@ export default function Chat() {
     try {
       const { data, error } = await supabase
         .from('chat_messages')
-        .select('*')
+        .select('*, profiles:user_id(username)')
         .order('created_at', { ascending: true });
 
       if (error) throw error;
@@ -123,15 +126,23 @@ export default function Chat() {
     setNewMessage('');
 
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('chat_messages')
         .insert({
           user_id: user.id,
           user_email: user.email,
           content: messageContent,
-        });
+        })
+        .select()
+        .single();
 
       if (error) throw error;
+
+      // Optimistically update the messages list
+      if (data) {
+        setMessages(prev => [...prev, data as Message]);
+        scrollToBottom();
+      }
     } catch (error: unknown) {
       setNewMessage(messageContent); // Restore the message if sending fails
       const errorMessage = error instanceof Error ? error.message : 'An error occurred while sending message';
@@ -197,7 +208,7 @@ export default function Chat() {
                 }}
               >
                 <Avatar sx={{ bgcolor: user && message.user_id === user.id ? 'primary.main' : 'secondary.main' }}>
-                  {message.user_email[0].toUpperCase()}
+                  {(message.profiles?.username || message.user_email)[0].toUpperCase()}
                 </Avatar>
                 <Paper 
                   sx={{
@@ -209,7 +220,7 @@ export default function Chat() {
                   }}
                 >
                   <ListItemText
-                    primary={message.user_email}
+                    primary={message.profiles?.username || message.user_email}
                     secondary={message.content}
                     secondaryTypographyProps={{
                       color: message.user_id === user.id ? 'inherit' : 'text.secondary',

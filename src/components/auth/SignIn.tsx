@@ -37,7 +37,12 @@ const SignIn = () => {
       await dispatch(signIn(formData)).unwrap();
       navigate('/');
     } catch (err) {
-      // Error is handled by the auth slice
+      // If the error is about email confirmation, provide a clear message
+      if (err === 'Email not confirmed') {
+        dispatch(clearError());
+        setError('Please check your email and confirm your account before signing in. If you need a new confirmation email, please contact support.');
+      }
+      // Other errors are handled by the auth slice
     }
   };
 
