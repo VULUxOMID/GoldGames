@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { Profile, ProfileUpdateData, GamingSession, GamingSessionCreateData, GoldTransaction, GoldTransactionCreateData } from '../types/supabase';
 
 // Initialize the Supabase client
 // Replace these with your actual Supabase URL and anon key
@@ -38,7 +39,7 @@ export const db = {
         .eq('id', userId)
         .single();
     },
-    update: async (userId: string, data: any) => {
+    update: async (userId: string, data: ProfileUpdateData) => {
       return await supabase
         .from('profiles')
         .update(data)
@@ -47,7 +48,7 @@ export const db = {
   },
   // Gaming sessions
   sessions: {
-    create: async (data: any) => {
+    create: async (data: GamingSessionCreateData) => {
       return await supabase
         .from('gaming_sessions')
         .insert(data);
@@ -61,7 +62,7 @@ export const db = {
   },
   // Gold transactions
   transactions: {
-    create: async (data: any) => {
+    create: async (data: GoldTransactionCreateData) => {
       return await supabase
         .from('gold_transactions')
         .insert(data);

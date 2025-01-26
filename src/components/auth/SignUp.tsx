@@ -36,15 +36,41 @@ const SignUp = () => {
     if (passwordError) setPasswordError(null);
   };
 
+  const validatePassword = (password: string): string | null => {
+    if (password.length < 8) return 'Password must be at least 8 characters long';
+    if (!/[A-Z]/.test(password)) return 'Password must contain at least one uppercase letter';
+    if (!/[a-z]/.test(password)) return 'Password must contain at least one lowercase letter';
+    if (!/[0-9]/.test(password)) return 'Password must contain at least one number';
+    return null;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
+
+    if (!formData.email.trim() || !formData.password.trim() || !formData.confirmPassword.trim()) {
+      setPasswordError('Please fill in all required fields');
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      setPasswordError('Please enter a valid email address');
+      return;
+    }
     
+    const passwordValidationError = validatePassword(formData.password);
+    if (passwordValidationError) {
+      setPasswordError(passwordValidationError);
+      return;
+    }
+
     if (formData.password !== formData.confirmPassword) {
       setPasswordError('Passwords do not match');
       return;
     }
 
     try {
+      setPasswordError(null);
       await dispatch(signUp({
         email: formData.email,
         password: formData.password
@@ -52,12 +78,17 @@ const SignUp = () => {
       setSignupSuccess(true);
     } catch (err: unknown) {
       if (typeof err === 'string') {
-        setPasswordError(err);
+        if (err.toLowerCase().includes('email already registered')) {
+          setPasswordError('This email is already registered. Please sign in or use a different email.');
+        } else {
+          setPasswordError(err);
+        }
       } else if (err instanceof Error) {
         setPasswordError(err.message);
       } else {
         setPasswordError('An unexpected error occurred during sign up');
       }
+      console.error('Sign up error:', err);
     }
   };
 

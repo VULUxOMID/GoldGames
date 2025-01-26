@@ -17,6 +17,12 @@ interface UserProfile {
   updated_at: string;
 }
 
+interface SupabaseError {
+  code: string;
+  message: string;
+  details?: string;
+}
+
 interface RootState {
   auth: {
     user: {
@@ -84,7 +90,11 @@ export default function Profile() {
   };
 
   const createNewProfile = async (user: RootState['auth']['user']) => {
-    if (!user) return;
+    if (!user || !user.email) {
+      setError('Invalid user data');
+      setLoading(false);
+      return;
+    }
   
     const defaultProfile: UserProfile = {
       id: user.id,
@@ -134,7 +144,10 @@ export default function Profile() {
   };
 
   const handleUpdateProfile = async () => {
-    if (!profile || !user) return;
+    if (!profile || !user) {
+      setError('Profile or user data is missing');
+      return;
+    }
     
     if (!profile.username.trim()) {
       setError('Username cannot be empty');
@@ -142,7 +155,19 @@ export default function Profile() {
     }
 
     setUpdateLoading(true);
+    setError(null); // Clear any existing errors
+
     try {
+      // First check if the profile still exists
+      const { data: existingProfile, error: checkError } = await supabase
+        .from('profiles')
+        .select('updated_at')
+        .eq('id', user.id)
+        .single();
+
+      if (checkError) throw new Error('Failed to verify profile status');
+      if (!existingProfile) throw new Error('Profile no longer exists');
+
       const updateData: UpdateProfileData = {
         username: profile.username.trim(),
         avatar: profile.avatar,
@@ -152,15 +177,22 @@ export default function Profile() {
       const { error: updateError } = await supabase
         .from('profiles')
         .update(updateData)
-        .eq('id', user.id);
+        .eq('id', user.id)
+        .eq('updated_at', existingProfile.updated_at); // Optimistic locking
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        if (updateError.code === 'PGRST116') {
+          throw new Error('Profile was modified by another session. Please refresh and try again.');
+        }
+        throw updateError;
+      }
+
       setIsEditing(false);
       await fetchProfile();
-      setError(null);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to update profile';
       setError(errorMessage);
+      console.error('Profile update error:', error);
     } finally {
       setUpdateLoading(false);
     }

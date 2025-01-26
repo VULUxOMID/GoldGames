@@ -33,14 +33,27 @@ const SignIn = () => {
     if (error) setError(null);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (loading) return;
+
+    if (!formData.email.trim() || !formData.password.trim()) {
+      setError('Please fill in all required fields');
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
     try {
+      setError(null);
       await dispatch(signIn(formData)).unwrap();
       navigate('/');
     } catch (err: unknown) {
       if (typeof err === 'string') {
-        if (err === 'Email not confirmed') {
+        if (err.toLowerCase().includes('email not confirmed')) {
           dispatch(clearError());
           setError('Please check your email and confirm your account before signing in. If you need a new confirmation email, please contact support.');
         } else {
@@ -51,6 +64,7 @@ const SignIn = () => {
       } else {
         setError('An unexpected error occurred');
       }
+      console.error('Sign in error:', err);
     }
   };
 
