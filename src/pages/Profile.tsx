@@ -6,12 +6,15 @@ import { gradientText, cardStyles } from '../theme/styles';
 import EditIcon from '@mui/icons-material/Edit';
 
 interface UserProfile {
+  id: string;
   username: string;
   email: string;
-  avatar: string;
-  totalGold: number;
-  gamesPlayed: number;
-  winRate: number;
+  avatar: string | null;
+  total_gold: number;
+  games_played: number;
+  win_rate: number;
+  created_at: string;
+  updated_at: string;
 }
 
 interface RootState {
@@ -23,7 +26,11 @@ interface RootState {
   };
 }
 
-
+interface UpdateProfileData {
+  username: string;
+  avatar: string | null;
+  updated_at: string;
+}
 
 export default function Profile() {
   const [isEditing, setIsEditing] = useState(false);
@@ -36,6 +43,9 @@ export default function Profile() {
   useEffect(() => {
     if (user) {
       fetchProfile();
+    } else {
+      setLoading(false);
+      setProfile(null);
     }
   }, [user]);
 
@@ -46,7 +56,6 @@ export default function Profile() {
     }
 
     try {
-      // First try to fetch existing profile
       const { data: existingProfile, error: fetchError } = await supabase
         .from('profiles')
         .select('*')
@@ -54,40 +63,19 @@ export default function Profile() {
         .single();
 
       if (fetchError) {
-        // If no profile exists, create one
         if (fetchError.code === 'PGRST116') {
-          const defaultProfile = {
-            id: user.id,
-            username: user.email?.split('@')[0] || 'User',
-            email: user.email,
-            avatar: '',
-            totalGold: 0,
-            gamesPlayed: 0,
-            winRate: 0,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          };
-
-          const { data: newProfile, error: createError } = await supabase
-            .from('profiles')
-            .insert([defaultProfile])
-            .select()
-            .single();
-
-          if (createError) {
-            throw new Error('Failed to create profile: ' + createError.message);
-          }
-
-          setProfile(newProfile);
+          await createNewProfile(user);
           return;
         }
-        
-        throw new Error('Failed to fetch profile: ' + fetchError.message);
+        throw new Error(`Profile fetch failed: ${fetchError.message}`);
       }
 
+      if (!existingProfile) {
+        throw new Error('Profile not found in database');
+      }
       setProfile(existingProfile);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch profile';
+      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
       setError(errorMessage);
       console.error('Profile error:', error);
     } finally {
@@ -95,23 +83,81 @@ export default function Profile() {
     }
   };
 
+  const createNewProfile = async (user: RootState['auth']['user']) => {
+    if (!user) return;
+  
+    const defaultProfile: UserProfile = {
+      id: user.id,
+      username: user.email?.split('@')[0] || 'User',
+      email: user.email || '',
+      avatar: null,
+      total_gold: 0,
+      games_played: 0,
+      win_rate: 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+  
+    try {
+      const { data: newProfile, error: createError } = await supabase
+        .from('profiles')
+        .insert([defaultProfile])
+        .select()
+        .single();
+  
+      if (createError) {
+        if (createError.code === '23505') {
+          const { data: retryProfile, error: retryError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', user.id)
+            .single();
+  
+          if (retryError || !retryProfile) {
+            throw new Error('Failed to fetch profile after creation attempt');
+          }
+          setProfile(retryProfile as UserProfile);
+          return;
+        }
+        throw new Error(`Profile creation failed: ${createError.message}`);
+      }
+  
+      if (!newProfile) {
+        throw new Error('Failed to create new profile: No data returned');
+      }
+      setProfile(newProfile as UserProfile);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create profile';
+      setError(errorMessage);
+      console.error('Profile creation error:', error);
+    }
+  };
+
   const handleUpdateProfile = async () => {
     if (!profile || !user) return;
     
+    if (!profile.username.trim()) {
+      setError('Username cannot be empty');
+      return;
+    }
+
     setUpdateLoading(true);
     try {
-      const { error } = await supabase
+      const updateData: UpdateProfileData = {
+        username: profile.username.trim(),
+        avatar: profile.avatar,
+        updated_at: new Date().toISOString()
+      };
+
+      const { error: updateError } = await supabase
         .from('profiles')
-        .update({
-          username: profile.username,
-          avatar: profile.avatar,
-          updated_at: new Date().toISOString()
-        })
+        .update(updateData)
         .eq('id', user.id);
 
-      if (error) throw error;
+      if (updateError) throw updateError;
       setIsEditing(false);
-      await fetchProfile(); // Refresh profile data after update
+      await fetchProfile();
+      setError(null);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to update profile';
       setError(errorMessage);
@@ -177,6 +223,8 @@ export default function Profile() {
                       value={profile.username}
                       onChange={(e) => setProfile({ ...profile, username: e.target.value })}
                       sx={{ mb: 1 }}
+                      error={!profile.username.trim()}
+                      helperText={!profile.username.trim() ? 'Username is required' : ''}
                     />
                   ) : (
                     <Typography variant="h4" sx={{ mb: 1 }}>
@@ -193,7 +241,7 @@ export default function Profile() {
                 variant="contained"
                 startIcon={<EditIcon />}
                 onClick={isEditing ? handleUpdateProfile : () => setIsEditing(true)}
-                disabled={updateLoading}
+                disabled={updateLoading || (isEditing && !profile.username.trim())}
                 sx={{ mb: 4, width: { xs: '100%', sm: 'auto' } }}
               >
                 {updateLoading ? 'Saving...' : (isEditing ? 'Save Changes' : 'Edit Profile')}
@@ -204,7 +252,7 @@ export default function Profile() {
                   <Card sx={{ ...cardStyles, bgcolor: 'background.paper' }}>
                     <CardContent>
                       <Typography variant="h6" sx={gradientText}>
-                        {profile.totalGold} G
+                        {profile.total_gold} G
                       </Typography>
                       <Typography color="text.secondary">
                         Total Gold Earned
@@ -216,7 +264,7 @@ export default function Profile() {
                   <Card sx={{ ...cardStyles, bgcolor: 'background.paper' }}>
                     <CardContent>
                       <Typography variant="h6" sx={gradientText}>
-                        {profile.gamesPlayed}
+                        {profile.games_played}
                       </Typography>
                       <Typography color="text.secondary">
                         Games Played
@@ -228,7 +276,7 @@ export default function Profile() {
                   <Card sx={{ ...cardStyles, bgcolor: 'background.paper' }}>
                     <CardContent>
                       <Typography variant="h6" sx={gradientText}>
-                        {profile.winRate}%
+                        {profile.win_rate}%
                       </Typography>
                       <Typography color="text.secondary">
                         Win Rate

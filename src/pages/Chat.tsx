@@ -26,7 +26,7 @@ interface Message {
   content: string;
   created_at: string;
   profiles?: {
-    username: string;
+    username: string | null;
   };
 }
 
@@ -38,6 +38,56 @@ interface RootState {
     } | null;
   };
 }
+
+const fetchMessages = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('chat_messages')
+      .select('*, profiles:user_id(username)')
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+    setMessages(data || []);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'An error occurred while fetching messages';
+    setError(errorMessage);
+    console.error('Chat fetch error:', error);
+  } finally {
+    setLoading(false);
+  }
+};
+
+const handleSendMessage = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (!newMessage.trim() || !user) return;
+
+  const messageContent = newMessage.trim();
+  setNewMessage('');
+
+  try {
+    const { data, error } = await supabase
+      .from('chat_messages')
+      .insert({
+        user_id: user.id,
+        user_email: user.email,
+        content: messageContent,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    if (data) {
+      setMessages(prev => [...prev, data as Message]);
+      scrollToBottom();
+    }
+  } catch (error: unknown) {
+    setNewMessage(messageContent);
+    const errorMessage = error instanceof Error ? error.message : 'An error occurred while sending message';
+    setError(errorMessage);
+    console.error('Chat send error:', error);
+  }
+};
 
 export default function Chat() {
   const { user } = useSelector((state: RootState) => state.auth);
@@ -100,55 +150,6 @@ export default function Chat() {
       }
     };
   }, []);
-
-  const fetchMessages = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('chat_messages')
-        .select('*, profiles:user_id(username)')
-        .order('created_at', { ascending: true });
-
-      if (error) throw error;
-      setMessages(data || []);
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'An error occurred while fetching messages';
-      setError(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newMessage.trim() || !user) return;
-
-    const messageContent = newMessage.trim();
-    setNewMessage('');
-
-    try {
-      const { data, error } = await supabase
-        .from('chat_messages')
-        .insert({
-          user_id: user.id,
-          user_email: user.email,
-          content: messageContent,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      // Optimistically update the messages list
-      if (data) {
-        setMessages(prev => [...prev, data as Message]);
-        scrollToBottom();
-      }
-    } catch (error: unknown) {
-      setNewMessage(messageContent); // Restore the message if sending fails
-      const errorMessage = error instanceof Error ? error.message : 'An error occurred while sending message';
-      setError(errorMessage);
-    }
-  };
 
   if (loading) {
     return (

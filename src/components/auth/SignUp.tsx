@@ -15,7 +15,7 @@ import {
 const SignUp = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const { loading, error } = useAppSelector((state) => state.auth);
+  const { loading, error: authError } = useAppSelector((state) => state.auth);
 
   const [formData, setFormData] = useState({
     email: '',
@@ -23,7 +23,8 @@ const SignUp = () => {
     confirmPassword: '',
   });
 
-  const [passwordError, setPasswordError] = useState('');
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [signupSuccess, setSignupSuccess] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -31,11 +32,9 @@ const SignUp = () => {
       ...prev,
       [name]: value,
     }));
-    if (error) dispatch(clearError());
-    if (passwordError) setPasswordError('');
+    if (authError) dispatch(clearError());
+    if (passwordError) setPasswordError(null);
   };
-
-  const [signupSuccess, setSignupSuccess] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,8 +50,14 @@ const SignUp = () => {
         password: formData.password
       })).unwrap();
       setSignupSuccess(true);
-    } catch (err) {
-      // Error is handled by the auth slice
+    } catch (err: unknown) {
+      if (typeof err === 'string') {
+        setPasswordError(err);
+      } else if (err instanceof Error) {
+        setPasswordError(err.message);
+      } else {
+        setPasswordError('An unexpected error occurred during sign up');
+      }
     }
   };
 
@@ -74,9 +79,9 @@ const SignUp = () => {
             <Alert severity="success" sx={{ mb: 2 }}>
               Registration successful! Please check your email to confirm your account before signing in.
             </Alert>
-          ) : (error || passwordError) && (
+          ) : (authError || passwordError) && (
             <Alert severity="error" sx={{ mb: 2 }}>
-              {error || passwordError}
+              {authError || passwordError}
             </Alert>
           )}
           <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>

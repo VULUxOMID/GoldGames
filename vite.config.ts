@@ -24,6 +24,6 @@ export default defineConfig({
     }
   },
   optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom', '@mui/material', '@vercel/analytics', '@vercel/speed-insights']
+    include: ['react', 'react-dom', 'react-router-dom', '@mui/material']
   }
 })

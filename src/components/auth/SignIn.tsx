@@ -15,7 +15,8 @@ import {
 const SignIn = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const { loading, error } = useAppSelector((state) => state.auth);
+  const { loading, error: authError } = useAppSelector((state) => state.auth);
+  const [error, setError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     email: '',
@@ -28,7 +29,8 @@ const SignIn = () => {
       ...prev,
       [name]: value,
     }));
-    if (error) dispatch(clearError());
+    if (authError) dispatch(clearError());
+    if (error) setError(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -36,13 +38,19 @@ const SignIn = () => {
     try {
       await dispatch(signIn(formData)).unwrap();
       navigate('/');
-    } catch (err) {
-      // If the error is about email confirmation, provide a clear message
-      if (err === 'Email not confirmed') {
-        dispatch(clearError());
-        setError('Please check your email and confirm your account before signing in. If you need a new confirmation email, please contact support.');
+    } catch (err: unknown) {
+      if (typeof err === 'string') {
+        if (err === 'Email not confirmed') {
+          dispatch(clearError());
+          setError('Please check your email and confirm your account before signing in. If you need a new confirmation email, please contact support.');
+        } else {
+          setError(err);
+        }
+      } else if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('An unexpected error occurred');
       }
-      // Other errors are handled by the auth slice
     }
   };
 
@@ -60,9 +68,9 @@ const SignIn = () => {
           <Typography component="h1" variant="h5" sx={{ mb: 3 }}>
             Sign In
           </Typography>
-          {error && (
+          {(error || authError) && (
             <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
+              {error || authError}
             </Alert>
           )}
           <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
