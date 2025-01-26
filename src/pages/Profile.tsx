@@ -70,6 +70,7 @@ export default function Profile() {
 
       if (fetchError) {
         if (fetchError.code === 'PGRST116') {
+          // Profile doesn't exist, create a new one
           await createNewProfile(user);
           return;
         }
@@ -79,6 +80,12 @@ export default function Profile() {
       if (!existingProfile) {
         throw new Error('Profile not found in database');
       }
+
+      // Validate the profile data structure
+      if (typeof existingProfile.id !== 'string') {
+        throw new Error('Invalid profile ID format');
+      }
+
       setProfile(existingProfile);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
@@ -90,16 +97,16 @@ export default function Profile() {
   };
 
   const createNewProfile = async (user: RootState['auth']['user']) => {
-    if (!user || !user.email) {
+    if (!user || !user.id || !user.email) {
       setError('Invalid user data');
       setLoading(false);
       return;
     }
   
     const defaultProfile: UserProfile = {
-      id: user.id,
-      username: user.email?.split('@')[0] || 'User',
-      email: user.email || '',
+      id: user.id, // Ensure this is a valid UUID from auth
+      username: user.email.split('@')[0] || 'User',
+      email: user.email,
       avatar: null,
       total_gold: 0,
       games_played: 0,
@@ -116,15 +123,18 @@ export default function Profile() {
         .single();
   
       if (createError) {
-        if (createError.code === '23505') {
+        if (createError.code === '23505') { // Unique violation error
           const { data: retryProfile, error: retryError } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', user.id)
             .single();
   
-          if (retryError || !retryProfile) {
-            throw new Error('Failed to fetch profile after creation attempt');
+          if (retryError) {
+            throw new Error(`Failed to fetch profile: ${retryError.message}`);
+          }
+          if (!retryProfile) {
+            throw new Error('Profile not found after creation attempt');
           }
           setProfile(retryProfile as UserProfile);
           return;
@@ -135,6 +145,12 @@ export default function Profile() {
       if (!newProfile) {
         throw new Error('Failed to create new profile: No data returned');
       }
+
+      // Validate the new profile
+      if (typeof newProfile.id !== 'string') {
+        throw new Error('Invalid profile ID format in created profile');
+      }
+      
       setProfile(newProfile as UserProfile);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to create profile';
