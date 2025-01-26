@@ -1,7 +1,8 @@
-import { Box, AppBar, Toolbar, IconButton, Typography, Drawer, List, ListItem, ListItemIcon, ListItemText, useTheme, useMediaQuery, CircularProgress } from '@mui/material';
+import { Box, AppBar, Toolbar, IconButton, Typography, Drawer, List, ListItem, ListItemIcon, ListItemText, useTheme, useMediaQuery, CircularProgress, Button } from '@mui/material';
+import { signOut } from '../../store/slices/authSlice';
 import { useState, useEffect } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useAppDispatch, useAppSelector } from '../../store/store';
 import MenuIcon from '@mui/icons-material/Menu';
 import HomeIcon from '@mui/icons-material/Home';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
@@ -38,13 +39,23 @@ export default function MainLayout() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const navigate = useNavigate();
-  const { user, loading } = useSelector((state: RootState) => state.auth);
+  const dispatch = useAppDispatch();
+  const { user, loading } = useAppSelector((state: RootState) => state.auth);
 
   useEffect(() => {
     if (!loading && !user) {
       navigate('/signin');
     }
   }, [user, loading, navigate]);
+
+  const handleSignOut = async () => {
+    try {
+      await dispatch(signOut());
+      navigate('/signin');
+    } catch (error) {
+      console.error('Sign out error:', error);
+    }
+  };
 
   if (loading) {
     return (
@@ -55,7 +66,12 @@ export default function MainLayout() {
   }
 
   if (!user) {
-    return null;
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', gap: 2 }}>
+        <Button variant="contained" onClick={() => navigate('/signin')}>Sign In</Button>
+        <Button variant="outlined" onClick={() => navigate('/signup')}>Sign Up</Button>
+      </Box>
+    );
   }
 
   const handleDrawerToggle = () => {
@@ -105,19 +121,22 @@ export default function MainLayout() {
           bgcolor: 'background.paper',
         }}
       >
-        <Toolbar>
-          <IconButton
-            color="primary"
-            aria-label="open drawer"
-            edge="start"
-            onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { sm: 'none' } }}
-          >
-            <MenuIcon />
-          </IconButton>
-          <Typography variant="h6" noWrap component="div" sx={{ color: 'primary.main' }}>
-            GoldGames
-          </Typography>
+        <Toolbar sx={{ display: 'flex', justifyContent: 'space-between' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <IconButton
+              color="primary"
+              aria-label="open drawer"
+              edge="start"
+              onClick={handleDrawerToggle}
+              sx={{ mr: 2, display: { sm: 'none' } }}
+            >
+              <MenuIcon />
+            </IconButton>
+            <Typography variant="h6" noWrap component="div" sx={{ color: 'primary.main' }}>
+              GoldGames
+            </Typography>
+          </Box>
+          <Button color="primary" onClick={handleSignOut}>Sign Out</Button>
         </Toolbar>
       </AppBar>
 

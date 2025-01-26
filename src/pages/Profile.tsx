@@ -171,18 +171,25 @@ export default function Profile() {
     }
 
     setUpdateLoading(true);
-    setError(null); // Clear any existing errors
+    setError(null);
 
     try {
-      // First check if the profile still exists
       const { data: existingProfile, error: checkError } = await supabase
         .from('profiles')
-        .select('updated_at')
+        .select('id, updated_at')
         .eq('id', user.id)
         .single();
 
-      if (checkError) throw new Error('Failed to verify profile status');
-      if (!existingProfile) throw new Error('Profile no longer exists');
+      if (checkError) {
+        if (checkError.code === 'PGRST116') {
+          throw new Error('Profile not found');
+        }
+        throw new Error(`Failed to verify profile status: ${checkError.message}`);
+      }
+
+      if (!existingProfile) {
+        throw new Error('Profile no longer exists');
+      }
 
       const updateData: UpdateProfileData = {
         username: profile.username.trim(),
@@ -190,21 +197,27 @@ export default function Profile() {
         updated_at: new Date().toISOString()
       };
 
-      const { error: updateError } = await supabase
+      const { data: updatedProfile, error: updateError } = await supabase
         .from('profiles')
         .update(updateData)
         .eq('id', user.id)
-        .eq('updated_at', existingProfile.updated_at); // Optimistic locking
+        .eq('updated_at', existingProfile.updated_at)
+        .select()
+        .single();
 
       if (updateError) {
-        if (updateError.code === 'PGRST116') {
-          throw new Error('Profile was modified by another session. Please refresh and try again.');
+        if (updateError.code === '23505') {
+          throw new Error('Username already taken');
         }
-        throw updateError;
+        throw new Error(`Failed to update profile: ${updateError.message}`);
       }
 
+      if (!updatedProfile) {
+        throw new Error('Profile was modified by another session. Please refresh and try again.');
+      }
+
+      setProfile(updatedProfile as UserProfile);
       setIsEditing(false);
-      await fetchProfile();
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to update profile';
       setError(errorMessage);

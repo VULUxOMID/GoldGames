@@ -63,16 +63,40 @@ export const db = {
   // Gold transactions
   transactions: {
     create: async (data: GoldTransactionCreateData) => {
-      return await supabase
-        .from('gold_transactions')
-        .insert(data);
+      try {
+        const { data: result, error } = await supabase
+          .from('gold_transactions')
+          .insert(data)
+          .select()
+          .single();
+        
+        if (error) {
+          console.error('Error creating transaction:', error);
+          return { data: null, error };
+        }
+        return { data: result, error: null };
+      } catch (err) {
+        console.error('Unexpected error creating transaction:', err);
+        return { data: null, error: err as Error };
+      }
     },
     getHistory: async (userId: string) => {
-      return await supabase
-        .from('gold_transactions')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
+      try {
+        const { data: transactions, error } = await supabase
+          .from('gold_transactions')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('Error fetching transaction history:', error);
+          return { data: null, error };
+        }
+        return { data: transactions, error: null };
+      } catch (err) {
+        console.error('Unexpected error fetching transactions:', err);
+        return { data: null, error: err as Error };
+      }
     },
   },
 };

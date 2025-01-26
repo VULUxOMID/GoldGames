@@ -5,15 +5,12 @@ import { useAppSelector } from '../store/store';
 import { Box, Container, Typography, Card, CardContent, Grid, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip, CircularProgress, Alert } from '@mui/material';
 import { gradientText, cardStyles, shimmerEffect } from '../theme/styles';
 
+import { GoldTransaction } from '../types/supabase';
+
 interface RootState {
   gold: {
     balance: number;
-    transactions: Array<{
-      amount: number;
-      type: 'credit' | 'debit';
-      description: string;
-      created_at: string;
-    }>;
+    transactions: GoldTransaction[];
     loading: boolean;
     error: string | null;
   };
@@ -149,8 +146,8 @@ export default function Wallet() {
                         </TableCell>
                         <TableCell align="right" sx={{ whiteSpace: 'nowrap', padding: { xs: 1, sm: 2 } }}>
                           <Chip
-                            label={transaction.type}
-                            color={transaction.type === 'credit' ? 'success' : 'error'}
+                            label={transaction.transaction_type}
+                            color={transaction.transaction_type === 'credit' ? 'success' : 'error'}
                             size="small"
                             sx={{
                               textTransform: 'capitalize',

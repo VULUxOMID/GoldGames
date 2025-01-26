@@ -56,6 +56,10 @@ const SignIn = () => {
         if (err.toLowerCase().includes('email not confirmed')) {
           dispatch(clearError());
           setError('Please check your email and confirm your account before signing in. If you need a new confirmation email, please contact support.');
+        } else if (err.toLowerCase().includes('invalid credentials')) {
+          setError('Invalid email or password');
+        } else if (err.toLowerCase().includes('too many requests')) {
+          setError('Too many login attempts. Please try again later.');
         } else {
           setError(err);
         }

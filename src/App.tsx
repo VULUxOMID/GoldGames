@@ -4,22 +4,24 @@ import { SnackbarProvider } from 'notistack';
 
 import { theme } from './theme/theme';
 import AppRoutes from './routes';
+import ErrorBoundary from './components/ErrorBoundary';
 
 function App() {
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <SnackbarProvider
-        maxSnack={3}
-        anchorOrigin={{
-          vertical: 'bottom',
-          horizontal: 'right',
-        }}
-      >
-        <AppRoutes />
-
-      </SnackbarProvider>
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <SnackbarProvider
+          maxSnack={3}
+          anchorOrigin={{
+            vertical: 'bottom',
+            horizontal: 'right',
+          }}
+        >
+          <AppRoutes />
+        </SnackbarProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }
 
